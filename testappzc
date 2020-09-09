@@ -1,1 +1,148 @@
+1.conftest.py
 
+#! /usr/bin/env python
+#-*-coding:utf-8-*-
+# created by zc on Sep9th,2020
+#安卓版app下载链接http://www.pc6.com/az/401579.html
+
+import os
+import time
+import random
+import pytest
+from appium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+@pytest.fixture(scope="session",autouse = True)
+def appdriver():
+    print("Test Health starts...")
+    PATH = lambda p:os.path.abspath(os.path.join(os.path.dirname(__file__),p))
+    desired_caps={}
+    desired_caps = {'platformName': 'Android',                    
+                    'platformVersion': '6.0',
+                    'deviceName': 'HUAWEI VNS-AL00',
+                    'app': PATH(r"E:\apptest\OrangerFamily.apk"),
+                    'appPackage': 'com.chengyifamily.patient',
+                    'noReset': True,
+                    'appActivity': 'com.chengyifamily.patient.SplashActivity',
+                    'automationName':'uiautomator2',
+                    'unicodeKeyboard': True,
+                    'resetKeyboard': True,
+                    'autoAcceptAlert': True,
+                    # 'uiautomator2ServerLaunchTimeout':3000
+                    }
+
+    global driver
+    driver = webdriver.Remote("http://localhost:4723/wd/hub", desired_caps)
+    return driver
+
+@pytest.fixture(scope="function")
+def login(appdriver):
+    print("Test health login starts...")
+    try:
+        login = "12345678907"
+        pwd = "123456"
+        appdriver.find_element_by_id('account_edit').clear()
+        appdriver.find_element_by_id('account_edit').send_keys(login)
+        appdriver.find_element_by_id('password_edit').clear()
+        appdriver.find_element_by_id('password_edit').send_keys(pwd)
+        appdriver.find_element_by_id('login_button').click()
+        appdriver.implicitly_wait(5)
+
+        def always_allow(appdriver, number=3):
+            for i in range(number):
+                loc = ("xpath", "//*[@text='允许']")
+                try:
+                    e = WebDriverWait(appdriver, 3, 0.1).until(EC.presence_of_element_located(loc))
+                    e.click()
+                except:
+                    pass
+        always_allow(appdriver)
+    except Exception as e:
+        pass
+    appdriver.implicitly_wait(2)
+
+@pytest.fixture(scope="function")
+def logout(appdriver):
+    print("Testing Health ends.")
+    appdriver.implicitly_wait(6)
+    appdriver.find_element_by_id('my_center').click()
+    appdriver.implicitly_wait(2)
+    appdriver.find_element_by_android_uiautomator('text("设置")').click()
+    appdriver.find_element_by_id('exit_btn').click()
+    appdriver.find_element_by_id('android:id/button1').click()
+    appdriver.implicitly_wait(3)
+
+@pytest.fixture(scope="session",autouse= True)
+def close_appdriver():
+    yield driver
+    driver.close_app()
+    driver.quit()
+
+2.test_healthmyinfo.py
+
+#! /usr/bin/env python
+# -*- coding:utf-8 -*-
+# created by zc on Sep9th,2020
+
+
+import os,time
+import pytest
+from appium import webdriver
+from HTMLTestRunner import HTMLTestRunner
+from selenium.common.exceptions import InvalidArgumentException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common import exceptions as EX
+from selenium.webdriver.common.action_chains import ActionChains
+
+def test_patinfologin(login):
+    login
+
+def test_patinfosmoke(appdriver):
+    appdriver.find_element_by_id('my_center').click()
+    appdriver.find_element_by_android_uiautomator('text("个人信息")').click()
+    appdriver.find_element_by_id('tv_smokevalue').click()
+    appdriver.find_element_by_android_uiautomator('text("吸烟")').click()
+    appdriver.find_element_by_id('android:id/button1').click()
+
+    width = appdriver.get_window_size()['width']
+    height = appdriver.get_window_size()['height']
+    number = 3
+    for i in range(number):
+        try:
+            appdriver.find_element_by_id('et_smokecount').click()
+            break
+        except Exception as e:
+            appdriver.swipe(width / 2, height * 0.8, width / 2, height * 0.2)
+
+    appdriver.find_element_by_id('et_smokecount').clear()
+    countvalue='2'
+    yearvalue='3'
+    appdriver.find_element_by_id('et_smokecount').send_keys(countvalue)
+    appdriver.find_element_by_id('et_smokeyear').clear()
+    appdriver.find_element_by_id('et_smokeyear').send_keys(yearvalue)
+    appdriver.find_element_by_id('bar_right_text').click()
+    appdriver.find_element_by_android_uiautomator('text("个人信息")').click()
+    width = appdriver.get_window_size()['width']
+    height = appdriver.get_window_size()['height']
+    number = 3
+    for i in range(number):
+        try:
+            appdriver.find_element_by_id('et_smokecount').click()
+            break
+        except Exception as e:
+            appdriver.swipe(width / 2, height * 0.8, width / 2, height * 0.2)
+    
+    assert appdriver.find_element_by_id('et_smokecount').text==countvalue
+    assert appdriver.find_element_by_id('et_smokeyear').text==yearvalue
+    print("吸烟的测试用例执行通过")
+    appdriver.find_element_by_id('bar_right_text').click()
+
+def test_patinfologout(logout):
+    logout
+
+if __name__ == '__main__':
+    now = time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))
+    filename = './testreport/' + now + 'testpersonalinfomationresult.html'
+    pytest.main(["-q","--html",filename])
